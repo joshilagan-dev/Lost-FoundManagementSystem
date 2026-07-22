@@ -7,10 +7,12 @@ enum class UserType {
 
 data class User(
     val id: Int,
+    val studNumber: String,
     val firstName: String,
     val lastName: String,
     val password: String,
-    val userType: UserType
+    val userType: UserType,
+    val createdAt: String? = null
 ) {
     val fullName: String get() = "$firstName $lastName"
 }
