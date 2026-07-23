@@ -57,8 +57,14 @@ fun LostFoundApp(
                 error = uiState.error,
                 message = uiState.message,
                 onClearFeedback = viewModel::clearFeedback,
-                onLogin = { first, pass ->
-                    viewModel.login(first, pass)
+                onLogin = { studNumber, password ->
+                    viewModel.login(
+                        studNumber,
+                        password
+                    ) { success ->
+                        // Nothing to do here.
+                        // Navigation is handled automatically by LaunchedEffect.
+                    }
                 },
                 onGoRegister = {
                     viewModel.clearFeedback()
@@ -71,8 +77,28 @@ fun LostFoundApp(
                 error = uiState.error,
                 message = uiState.message,
                 onClearFeedback = viewModel::clearFeedback,
-                onRegister = { first, last, pass, confirm, asStaff ->
-                    viewModel.register(first, last, pass, confirm, asStaff)
+                onRegister = {
+                        studNumber,
+                        firstName,
+                        lastName,
+                        password,
+                        confirmPassword,
+                        asStaff ->
+
+                    viewModel.register(
+                        studNumber,
+                        firstName,
+                        lastName,
+                        password,
+                        confirmPassword,
+                        asStaff
+                    ) { success ->
+
+                        if (success) {
+                            navController.popBackStack()
+                        }
+
+                    }
                 },
                 onBack = {
                     viewModel.clearFeedback()

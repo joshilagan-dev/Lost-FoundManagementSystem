@@ -3,8 +3,13 @@ package com.example.lost_foundmanagementsystem.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.lost_foundmanagementsystem.data.fake.FakeLostFoundRepository
+
+import com.example.lost_foundmanagementsystem.data.repository.LostFoundRepository
+
+import kotlinx.coroutines.launch
+
 import com.example.lost_foundmanagementsystem.data.models.Claim
+import com.example.lost_foundmanagementsystem.data.models.ClaimStatus
 import com.example.lost_foundmanagementsystem.data.models.FoundItem
 import com.example.lost_foundmanagementsystem.data.models.LostItem
 import com.example.lost_foundmanagementsystem.data.models.User
@@ -12,10 +17,16 @@ import com.example.lost_foundmanagementsystem.data.models.UserType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+
+import com.example.lost_foundmanagementsystem.data.network.dto.ReportLostRequest
+import com.example.lost_foundmanagementsystem.data.network.dto.ReportFoundRequest
+import com.example.lost_foundmanagementsystem.data.network.dto.ClaimItemRequest
+import com.example.lost_foundmanagementsystem.data.network.dto.UpdateClaimRequest
+
 
 data class AppUiState(
     val currentUser: User? = null,
@@ -32,8 +43,8 @@ data class AppUiState(
             if (q.isEmpty()) return lostItems
             return lostItems.filter {
                 it.itemName.contains(q, ignoreCase = true) ||
-                    it.itemDescription.contains(q, ignoreCase = true) ||
-                    it.lostLocation.contains(q, ignoreCase = true)
+                        it.itemDescription.contains(q, ignoreCase = true) ||
+                        it.lostLocation.contains(q, ignoreCase = true)
             }
         }
 
@@ -43,8 +54,8 @@ data class AppUiState(
             if (q.isEmpty()) return foundItems
             return foundItems.filter {
                 it.itemName.contains(q, ignoreCase = true) ||
-                    it.itemDescription.contains(q, ignoreCase = true) ||
-                    it.foundLocation.contains(q, ignoreCase = true)
+                        it.itemDescription.contains(q, ignoreCase = true) ||
+                        it.foundLocation.contains(q, ignoreCase = true)
             }
         }
 
@@ -52,19 +63,115 @@ data class AppUiState(
 }
 
 class AppViewModel(
-    private val repository: FakeLostFoundRepository
-) : ViewModel() {
+    private val repository: LostFoundRepository
+): ViewModel() {
+
+    init {
+        loadItems()
+        loadClaims()
+    }
+
+    private fun loadItems() {
+
+        viewModelScope.launch {
+
+            try {
+
+                val lostResponse = repository.getLostItems()
+                val foundResponse = repository.getFoundItems()
+
+                if (lostResponse.isSuccessful && lostResponse.body() != null) {
+
+                    _lostItems.value = lostResponse.body()!!.map {
+                        LostItem(
+                            itemId = it.lost_item_id,
+                            itemName = it.item_name,
+                            itemDescription = it.item_description,
+                            lostLocation = it.lost_location,
+                            lostDate = it.lost_date,
+                            reportedByUser = it.reported_by,
+                            reportedDate = it.reported_date
+                        )
+                    }
+
+                }
+
+                if (foundResponse.isSuccessful && foundResponse.body() != null) {
+
+                    _foundItems.value = foundResponse.body()!!.map {
+                        FoundItem(
+                            itemId = it.found_item_id,
+                            itemName = it.item_name,
+                            itemDescription = it.item_description,
+                            foundLocation = it.found_location,
+                            foundDate = it.found_date,
+                            foundByUser = it.found_by,
+                            reportedDate = it.reported_date
+                        )
+                    }
+
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
+            }
+
+        }
+
+    }
+
+    private fun loadClaims() {
+
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.getClaims()
+
+                if (response.isSuccessful && response.body() != null) {
+
+                    _claims.value = response.body()!!.map {
+                        Claim(
+                            claimId = it.claim_id,
+                            foundItemId = it.found_item_id,
+                            claimantUserId = it.claimant_user_id,
+                            claimantName = it.claimant_name,
+                            lostLocationAnswer = it.lost_location_answer,
+                            lostDateAnswer = it.lost_date_answer,
+                            status = when (it.status) {
+                                "Approved" -> ClaimStatus.Approved
+                                "Rejected" -> ClaimStatus.Rejected
+                                else -> ClaimStatus.Pending
+                            },
+                            submittedAt = it.submitted_at
+                        )
+                    }
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
+            }
+
+        }
+    }
 
     private val _currentUser = MutableStateFlow<User?>(null)
+    private val _lostItems = MutableStateFlow<List<LostItem>>(emptyList())
+    private val _foundItems = MutableStateFlow<List<FoundItem>>(emptyList())
+    private val _claims = MutableStateFlow<List<Claim>>(emptyList())
     private val _searchQuery = MutableStateFlow("")
     private val _message = MutableStateFlow<String?>(null)
     private val _error = MutableStateFlow<String?>(null)
 
     private val coreState = combine(
         _currentUser,
-        repository.lostItems,
-        repository.foundItems,
-        repository.claims
+        _lostItems,
+        _foundItems,
+        _claims
     ) { user, lost, found, claims ->
         CoreSlice(user, lost, found, claims)
     }
@@ -102,64 +209,149 @@ class AppViewModel(
         val error: String?
     )
 
-    fun login(firstName: String, password: String): Boolean {
+    fun login(
+        studNumber: String,
+        password: String,
+        onResult: (Boolean) -> Unit
+    ) {
+
         clearFeedback()
-        if (firstName.isBlank() || password.isBlank()) {
-            _error.value = "Enter your first name and password."
-            return false
+
+        if (studNumber.isBlank() || password.isBlank()) {
+            _error.value = "Enter your student number and password."
+            onResult(false)
+            return
         }
-        val user = repository.login(firstName, password)
-        return if (user != null) {
-            _currentUser.value = user
-            _message.value = "Welcome, ${user.fullName}."
-            true
-        } else {
-            _error.value = "Invalid name or password. Try Alex / student123 or Jordan / staff123."
-            false
+
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.login(
+                    studNumber,
+                    password
+                )
+
+                if (response.isSuccessful &&
+                    response.body()?.success == true
+                ) {
+
+                    val apiUser = response.body()!!.user!!
+
+                    _currentUser.value = User(
+                        id = apiUser.user_id,
+                        studNumber = apiUser.stud_number,
+                        firstName = apiUser.first_name,
+                        lastName = apiUser.last_name,
+                        password = "",
+                        userType = if (apiUser.user_type == "Staff")
+                            UserType.Staff
+                        else
+                            UserType.Student,
+                        createdAt = apiUser.created_at
+                    )
+
+                    _message.value = response.body()!!.message
+
+                    onResult(true)
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Login failed."
+
+                    onResult(false)
+                }
+
+            } catch (e: Exception) {
+
+                _error.value =
+                    e.localizedMessage ?: "Unable to connect to server."
+
+                onResult(false)
+            }
+
         }
     }
 
     fun register(
+        studNumber: String,
         firstName: String,
         lastName: String,
         password: String,
         confirmPassword: String,
-        asStaff: Boolean
-    ): Boolean {
+        asStaff: Boolean,
+        onResult: (Boolean) -> Unit
+    ) {
+
         clearFeedback()
+
         when {
-            firstName.isBlank() || lastName.isBlank() || password.isBlank() -> {
+
+            studNumber.isBlank() ||
+                    firstName.isBlank() ||
+                    lastName.isBlank() ||
+                    password.isBlank() -> {
+
                 _error.value = "Please fill in all fields."
-                return false
+                onResult(false)
+                return
             }
+
             password != confirmPassword -> {
+
                 _error.value = "Passwords do not match."
-                return false
+                onResult(false)
+                return
             }
+
             password.length < 6 -> {
+
                 _error.value = "Password must be at least 6 characters."
-                return false
+                onResult(false)
+                return
             }
         }
-        val result = repository.register(
-            firstName = firstName,
-            lastName = lastName,
-            password = password,
-            userType = if (asStaff) UserType.Staff else UserType.Student
-        )
-        return result.fold(
-            onSuccess = { user ->
-                _currentUser.value = user
-                _message.value = "Account created. Welcome, ${user.fullName}."
-                true
-            },
-            onFailure = { e ->
-                _error.value = e.message
-                false
-            }
-        )
-    }
 
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.register(
+                    studNumber = studNumber,
+                    firstName = firstName,
+                    lastName = lastName,
+                    password = password,
+                    userType = if (asStaff) "Staff" else "Student"
+                )
+
+                if (response.isSuccessful &&
+                    response.body()?.success == true
+                ) {
+
+                    _message.value = response.body()!!.message
+
+                    onResult(true)
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Registration failed."
+
+                    onResult(false)
+                }
+
+            } catch (e: Exception) {
+
+                _error.value =
+                    e.localizedMessage ?: "Unable to connect to server."
+
+                onResult(false)
+            }
+
+        }
+
+    }
     fun logout() {
         _currentUser.value = null
         _searchQuery.value = ""
@@ -176,26 +368,63 @@ class AppViewModel(
         lostLocation: String,
         lostDate: String
     ): Boolean {
+
         clearFeedback()
+
         val user = _currentUser.value
+
         if (user == null) {
             _error.value = "Please log in first."
             return false
         }
-        if (itemName.isBlank() || itemDescription.isBlank() ||
-            lostLocation.isBlank() || lostDate.isBlank()
+
+        if (
+            itemName.isBlank() ||
+            itemDescription.isBlank() ||
+            lostLocation.isBlank() ||
+            lostDate.isBlank()
         ) {
-            _error.value = "Please complete all fields, including where and when you lost it."
+            _error.value = "Please complete all fields."
             return false
         }
-        repository.addLostItem(
-            itemName = itemName,
-            itemDescription = itemDescription,
-            lostLocation = lostLocation,
-            lostDate = lostDate,
-            reportedByUser = user.fullName
-        )
-        _message.value = "Lost item reported."
+
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.reportLost(
+                    ReportLostRequest(
+                        user_id = user.id,
+                        item_name = itemName,
+                        item_description = itemDescription,
+                        lost_location = lostLocation,
+                        lost_date = lostDate
+                    )
+                )
+
+                if (response.isSuccessful &&
+                    response.body()?.success == true
+                ) {
+
+                    _message.value = response.body()!!.message
+
+                    loadItems()
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Failed to report lost item."
+
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
+            }
+
+        }
+
         return true
     }
 
@@ -217,14 +446,40 @@ class AppViewModel(
             _error.value = "Please complete all fields, including where and when you found it."
             return false
         }
-        repository.addFoundItem(
-            itemName = itemName,
-            itemDescription = itemDescription,
-            foundLocation = foundLocation,
-            foundDate = foundDate,
-            foundByUser = user.fullName
-        )
-        _message.value = "Found item reported."
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.reportFound(
+                    ReportFoundRequest(
+                        user_id = user.id,
+                        item_name = itemName,
+                        item_description = itemDescription,
+                        found_location = foundLocation,
+                        found_date = foundDate
+                    )
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+
+                    _message.value = response.body()!!.message
+
+                    loadItems()
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Unable to report found item."
+
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
+            }
+
+        }
         return true
     }
 
@@ -233,31 +488,55 @@ class AppViewModel(
         lostLocationAnswer: String,
         lostDateAnswer: String
     ): Boolean {
+
         clearFeedback()
+
         val user = _currentUser.value
         if (user == null) {
             _error.value = "Please log in first."
             return false
         }
+
         if (lostLocationAnswer.isBlank() || lostDateAnswer.isBlank()) {
-            _error.value = "Answer both verification questions to confirm ownership."
+            _error.value = "Answer both verification questions."
             return false
         }
-        return repository.submitClaim(
-            foundItemId = foundItemId,
-            claimant = user,
-            lostLocationAnswer = lostLocationAnswer,
-            lostDateAnswer = lostDateAnswer
-        ).fold(
-            onSuccess = {
-                _message.value = "Claim submitted. Staff will review your answers."
-                true
-            },
-            onFailure = { e ->
-                _error.value = e.message
-                false
+
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.claimItem(
+                    ClaimItemRequest(
+                        claimant_user_id = user.id,
+                        found_item_id = foundItemId,
+                        lost_location_answer = lostLocationAnswer,
+                        lost_date_answer = lostDateAnswer
+                    )
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+
+                    _message.value = response.body()!!.message
+
+                    loadClaims()
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Unable to submit claim."
+
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
             }
-        )
+
+        }
+
+        return true
     }
 
     fun resolveClaim(claimId: Int, approve: Boolean): Boolean {
@@ -266,21 +545,49 @@ class AppViewModel(
             _error.value = "Only staff can resolve claims."
             return false
         }
-        return repository.resolveClaim(claimId, approve).fold(
-            onSuccess = {
-                _message.value = if (approve) "Claim approved." else "Claim rejected."
-                true
-            },
-            onFailure = { e ->
-                _error.value = e.message
-                false
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.updateClaim(
+                    UpdateClaimRequest(
+                        claim_id = claimId,
+                        status = if (approve) "Approved" else "Rejected"
+                    )
+                )
+
+                if (response.isSuccessful &&
+                    response.body()?.success == true
+                ) {
+
+                    _message.value = response.body()!!.message
+
+                    loadClaims()
+                    loadItems()
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Unable to update claim."
+
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
             }
-        )
+
+        }
+
+        return true
     }
 
-    fun getLostItem(id: Int): LostItem? = repository.getLostItem(id)
+    fun getLostItem(id: Int): LostItem? =
+        _lostItems.value.find { it.itemId == id }
 
-    fun getFoundItem(id: Int): FoundItem? = repository.getFoundItem(id)
+    fun getFoundItem(id: Int): FoundItem? =
+        _foundItems.value.find { it.itemId == id }
 
     fun clearFeedback() {
         _message.value = null
@@ -290,16 +597,4 @@ class AppViewModel(
     fun consumeMessage() = _message.update { null }
 
     fun consumeError() = _error.update { null }
-}
-
-class AppViewModelFactory(
-    private val repository: FakeLostFoundRepository
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(AppViewModel::class.java)) {
-            return AppViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
 }

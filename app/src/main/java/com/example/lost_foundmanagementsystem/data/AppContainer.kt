@@ -1,7 +1,10 @@
 package com.example.lost_foundmanagementsystem.data
 
-import com.example.lost_foundmanagementsystem.data.fake.FakeLostFoundRepository
+import com.example.lost_foundmanagementsystem.data.repository.LostFoundRepository
 
 object AppContainer {
-    val repository: FakeLostFoundRepository by lazy { FakeLostFoundRepository() }
+
+    val repository by lazy {
+        LostFoundRepository()
+    }
 }

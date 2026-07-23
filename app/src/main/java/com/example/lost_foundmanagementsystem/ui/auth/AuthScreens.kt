@@ -34,16 +34,18 @@ import com.example.lost_foundmanagementsystem.ui.components.FeedbackBanner
 import com.example.lost_foundmanagementsystem.ui.theme.Sand
 import com.example.lost_foundmanagementsystem.ui.theme.TealDark
 import com.example.lost_foundmanagementsystem.ui.theme.TealPrimary
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 
 @Composable
 fun LoginScreen(
     error: String?,
     message: String?,
     onClearFeedback: () -> Unit,
-    onLogin: (firstName: String, password: String) -> Boolean,
+    onLogin: (studNumber: String, password: String) -> Unit,
     onGoRegister: () -> Unit
 ) {
-    var firstName by rememberSaveable { mutableStateOf("") }
+    var studNumber by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
     Box(
@@ -95,9 +97,9 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
-                    value = firstName,
-                    onValueChange = { firstName = it },
-                    label = { Text("First name") },
+                    value = studNumber,
+                    onValueChange = { studNumber = it },
+                    label = { Text("Student Number") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -112,7 +114,7 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = { onLogin(firstName, password) },
+                    onClick = { onLogin(studNumber, password) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Log in")
@@ -121,11 +123,7 @@ fun LoginScreen(
                     Text("Create an account")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Demo: Alex / student123  ·  Jordan / staff123",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+
             }
         }
     }
@@ -137,14 +135,16 @@ fun RegisterScreen(
     message: String?,
     onClearFeedback: () -> Unit,
     onRegister: (
+        studNumber: String,
         firstName: String,
         lastName: String,
         password: String,
         confirmPassword: String,
         asStaff: Boolean
-    ) -> Boolean,
+    ) -> Unit,
     onBack: () -> Unit
 ) {
+    var studNumber by rememberSaveable { mutableStateOf("") }
     var firstName by rememberSaveable { mutableStateOf("") }
     var lastName by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -168,9 +168,20 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(16.dp))
         FeedbackBanner(message, error, onClearFeedback)
         OutlinedTextField(
+            value = studNumber,
+            onValueChange = { studNumber = it },
+            label = { Text("Student Number") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            ),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
             value = firstName,
             onValueChange = { firstName = it },
-            label = { Text("First name") },
+            label = { Text("First Name") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -205,7 +216,14 @@ fun RegisterScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
-                onRegister(firstName, lastName, password, confirm, asStaff)
+                onRegister(
+                    studNumber,
+                    firstName,
+                    lastName,
+                    password,
+                    confirm,
+                    asStaff
+                )
             },
             modifier = Modifier.fillMaxWidth()
         ) {
