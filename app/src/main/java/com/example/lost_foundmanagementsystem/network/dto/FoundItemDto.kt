@@ -7,5 +7,6 @@ data class FoundItemDto(
     val found_location: String,
     val found_date: String,
     val found_by: String,
-    val reported_date: String
+    val reported_date: String,
+    val status: String
 )

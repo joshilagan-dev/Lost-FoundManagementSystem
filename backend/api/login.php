@@ -34,7 +34,6 @@ $result = $user->login(
 );
 
 if ($result) {
-
     echo json_encode([
         "success" => true,
         "message" => "Login successful.",

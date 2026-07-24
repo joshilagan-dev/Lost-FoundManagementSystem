@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import com.example.lost_foundmanagementsystem.data.models.Claim
 import com.example.lost_foundmanagementsystem.data.models.ClaimStatus
 import com.example.lost_foundmanagementsystem.data.models.FoundItem
+import com.example.lost_foundmanagementsystem.data.models.ItemStatus
 import com.example.lost_foundmanagementsystem.data.models.LostItem
 import com.example.lost_foundmanagementsystem.data.models.User
 import com.example.lost_foundmanagementsystem.data.models.UserType
@@ -26,6 +27,7 @@ import com.example.lost_foundmanagementsystem.data.network.dto.ReportLostRequest
 import com.example.lost_foundmanagementsystem.data.network.dto.ReportFoundRequest
 import com.example.lost_foundmanagementsystem.data.network.dto.ClaimItemRequest
 import com.example.lost_foundmanagementsystem.data.network.dto.UpdateClaimRequest
+import com.example.lost_foundmanagementsystem.data.network.dto.UpdateFoundItemStatusRequest
 
 
 data class AppUiState(
@@ -90,7 +92,9 @@ class AppViewModel(
                             lostLocation = it.lost_location,
                             lostDate = it.lost_date,
                             reportedByUser = it.reported_by,
-                            reportedDate = it.reported_date
+                            reportedDate = it.reported_date,
+                            status = runCatching { ItemStatus.valueOf(it.status) }
+                                .getOrDefault(ItemStatus.Open)
                         )
                     }
 
@@ -106,7 +110,9 @@ class AppViewModel(
                             foundLocation = it.found_location,
                             foundDate = it.found_date,
                             foundByUser = it.found_by,
-                            reportedDate = it.reported_date
+                            reportedDate = it.reported_date,
+                            status = runCatching { ItemStatus.valueOf(it.status) }
+                                .getOrDefault(ItemStatus.Available)
                         )
                     }
 
@@ -228,7 +234,7 @@ class AppViewModel(
             try {
 
                 val response = repository.login(
-                    studNumber,
+                    studNumber.trim(),
                     password
                 )
 
@@ -257,10 +263,17 @@ class AppViewModel(
 
                 } else {
 
+                    val errorText = response.errorBody()?.string()
+
                     _error.value =
-                        response.body()?.message ?: "Login failed."
+
+                        """
+        Code: ${response.code()}
+        Error: $errorText
+        """.trimIndent()
 
                     onResult(false)
+
                 }
 
             } catch (e: Exception) {
@@ -318,9 +331,9 @@ class AppViewModel(
             try {
 
                 val response = repository.register(
-                    studNumber = studNumber,
-                    firstName = firstName,
-                    lastName = lastName,
+                    studNumber = studNumber.trim(),
+                    firstName = firstName.trim(),
+                    lastName = lastName.trim(),
                     password = password,
                     userType = if (asStaff) "Staff" else "Student"
                 )
@@ -569,6 +582,53 @@ class AppViewModel(
 
                     _error.value =
                         response.body()?.message ?: "Unable to update claim."
+
+                }
+
+            } catch (e: Exception) {
+
+                _error.value = e.localizedMessage
+
+            }
+
+        }
+
+        return true
+    }
+
+    /**
+     * Lets staff directly set a found item's status
+     * (e.g. mark it 'Claimed' without needing a pending claim).
+     */
+    fun updateFoundItemStatus(foundItemId: Int, status: ItemStatus): Boolean {
+        clearFeedback()
+        if (_currentUser.value?.userType != UserType.Staff) {
+            _error.value = "Only staff can change item status."
+            return false
+        }
+        viewModelScope.launch {
+
+            try {
+
+                val response = repository.updateFoundItemStatus(
+                    UpdateFoundItemStatusRequest(
+                        found_item_id = foundItemId,
+                        status = status.name
+                    )
+                )
+
+                if (response.isSuccessful &&
+                    response.body()?.success == true
+                ) {
+
+                    _message.value = response.body()!!.message
+
+                    loadItems()
+
+                } else {
+
+                    _error.value =
+                        response.body()?.message ?: "Unable to update item status."
 
                 }
 

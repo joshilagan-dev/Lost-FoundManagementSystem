@@ -7,5 +7,6 @@ data class LostItemDto(
     val lost_location: String,
     val lost_date: String,
     val reported_by: String,
-    val reported_date: String
+    val reported_date: String,
+    val status: String
 )

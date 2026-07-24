@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -141,7 +142,9 @@ fun ItemDetailScreen(
     lostItem: LostItem?,
     foundItem: FoundItem?,
     canClaim: Boolean,
+    isStaff: Boolean,
     onClaim: () -> Unit,
+    onMarkClaimed: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
@@ -205,6 +208,16 @@ fun ItemDetailScreen(
                             Text("A claim is pending staff review.")
                         } else if (foundItem.status == ItemStatus.Claimed) {
                             Text("This item has already been claimed.")
+                        }
+
+                        if (isStaff && foundItem.status != ItemStatus.Claimed) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = onMarkClaimed,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Mark as Claimed")
+                            }
                         }
                     }
                 }

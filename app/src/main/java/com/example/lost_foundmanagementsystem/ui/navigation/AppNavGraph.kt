@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.lost_foundmanagementsystem.data.AppContainer
+import com.example.lost_foundmanagementsystem.data.models.ItemStatus
 import com.example.lost_foundmanagementsystem.ui.auth.LoginScreen
 import com.example.lost_foundmanagementsystem.ui.auth.RegisterScreen
 import com.example.lost_foundmanagementsystem.ui.claim.ClaimVerificationScreen
@@ -188,9 +189,15 @@ fun LostFoundApp(
                 lostItem = if (type == Routes.TYPE_LOST) viewModel.getLostItem(id) else null,
                 foundItem = if (type == Routes.TYPE_FOUND) viewModel.getFoundItem(id) else null,
                 canClaim = uiState.currentUser != null,
+                isStaff = uiState.isStaff,
                 onClaim = {
                     viewModel.clearFeedback()
                     navController.navigate(Routes.claimVerify(id))
+                },
+                onMarkClaimed = {
+                    if (type == Routes.TYPE_FOUND) {
+                        viewModel.updateFoundItemStatus(id, ItemStatus.Claimed)
+                    }
                 },
                 onBack = { navController.popBackStack() }
             )

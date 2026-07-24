@@ -34,6 +34,7 @@ import com.example.lost_foundmanagementsystem.data.models.ItemStatus
 import com.example.lost_foundmanagementsystem.ui.theme.StatusAmber
 import com.example.lost_foundmanagementsystem.ui.theme.StatusGreen
 import com.example.lost_foundmanagementsystem.ui.theme.StatusRed
+import com.example.lost_foundmanagementsystem.ui.theme.Purple80
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,6 +65,7 @@ fun ClaimStatusChip(status: ClaimStatus) {
         ClaimStatus.Pending -> "Pending" to StatusAmber
         ClaimStatus.Approved -> "Approved" to StatusGreen
         ClaimStatus.Rejected -> "Rejected" to StatusRed
+        ClaimStatus.Claimed -> "Claimed" to Purple80
     }
     AssistChip(
         onClick = {},

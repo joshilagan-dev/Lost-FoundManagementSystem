@@ -20,6 +20,10 @@ class User
         string $userType
     ): bool {
 
+        $studNumber = trim($studNumber);
+        $firstName = trim($firstName);
+        $lastName = trim($lastName);
+
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
         $sql = "INSERT INTO users
@@ -43,6 +47,8 @@ class User
      */
     public function studentExists(string $studNumber): bool
     {
+        $studNumber = trim($studNumber);
+
         $stmt = $this->conn->prepare(
             "SELECT user_id
              FROM users
@@ -57,13 +63,21 @@ class User
     }
 
     /**
-     * Login
+     * Login.
+     *
+     * Returns the user row (without the password hash) on success,
+     * or null if the student number doesn't exist or the password
+     * doesn't match. Returning null (instead of die()-ing) lets
+     * login.php decide how to respond, and keeps every response a
+     * valid JSON body.
      */
     public function login(
         string $studNumber,
         string $password
-    )
-    {
+    ): ?array {
+
+        $studNumber = trim($studNumber);
+
         $stmt = $this->conn->prepare(
             "SELECT *
              FROM users
@@ -77,13 +91,14 @@ class User
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$user) {
-            return false;
+            return null;
         }
 
         if (!password_verify($password, $user["password"])) {
-            return false;
+            return null;
         }
 
+        // Don't expose the password hash
         unset($user["password"]);
 
         return $user;

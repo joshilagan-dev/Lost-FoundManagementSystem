@@ -55,6 +55,7 @@ class LostItem
                 l.lost_location,
                 l.lost_date,
                 l.reported_date,
+                l.status,
                 COALESCE(CONCAT(u.first_name, ' ', u.last_name), 'Unknown') AS reported_by
             FROM lost_items l
             LEFT JOIN users u

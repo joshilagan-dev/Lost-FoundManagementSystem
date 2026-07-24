@@ -7,6 +7,7 @@ import com.example.lost_foundmanagementsystem.data.network.dto.ReportLostRequest
 import com.example.lost_foundmanagementsystem.data.network.dto.ReportFoundRequest
 import com.example.lost_foundmanagementsystem.data.network.dto.ClaimItemRequest
 import com.example.lost_foundmanagementsystem.data.network.dto.UpdateClaimRequest
+import com.example.lost_foundmanagementsystem.data.network.dto.UpdateFoundItemStatusRequest
 class LostFoundRepository {
 
     private val api = RetrofitClient.apiService
@@ -61,5 +62,9 @@ class LostFoundRepository {
     suspend fun updateClaim(
         request: UpdateClaimRequest
     ) = api.updateClaim(request)
+
+    suspend fun updateFoundItemStatus(
+        request: UpdateFoundItemStatusRequest
+    ) = api.updateFoundItemStatus(request)
 
 }

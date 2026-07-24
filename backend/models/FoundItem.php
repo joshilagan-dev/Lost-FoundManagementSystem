@@ -55,6 +55,7 @@ class FoundItem
                 f.found_location,
                 f.found_date,
                 f.reported_date,
+                f.status,
                 COALESCE(CONCAT(u.first_name, ' ', u.last_name), 'Unknown') AS found_by
             FROM found_items f
             LEFT JOIN users u
@@ -66,6 +67,29 @@ class FoundItem
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Let staff set a found item's status directly
+     * (e.g. mark it 'Claimed' even without going through
+     * the claim-approval flow).
+     */
+    public function updateStatus(int $foundItemId, string $status): bool
+    {
+        if (!in_array($status, ["Available", "ClaimPending", "Claimed"], true)) {
+            return false;
+        }
+
+        $stmt = $this->conn->prepare(
+            "UPDATE found_items
+             SET status = :status
+             WHERE found_item_id = :found_item_id"
+        );
+
+        return $stmt->execute([
+            ":status" => $status,
+            ":found_item_id" => $foundItemId
+        ]);
     }
 
     public function delete(int $foundItemId): bool

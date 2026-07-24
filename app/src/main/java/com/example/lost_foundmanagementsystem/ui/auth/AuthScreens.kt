@@ -98,8 +98,8 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = studNumber,
-                    onValueChange = { studNumber = it },
-                    label = { Text("Student Number") },
+                    onValueChange = { studNumber = it.replace(Regex("[\\r\\n]"), "") },
+                    label = { Text("Student / Staff Number") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -169,10 +169,10 @@ fun RegisterScreen(
         FeedbackBanner(message, error, onClearFeedback)
         OutlinedTextField(
             value = studNumber,
-            onValueChange = { studNumber = it },
-            label = { Text("Student Number") },
+            onValueChange = { studNumber = it.replace(Regex("[\\r\\n]"), "") },
+            label = { Text("Student / Staff Number") },
             keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number
+                keyboardType = KeyboardType.Text
             ),
             modifier = Modifier.fillMaxWidth(),
             singleLine = true

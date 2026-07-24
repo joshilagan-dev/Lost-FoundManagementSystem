@@ -17,6 +17,7 @@ import com.example.lost_foundmanagementsystem.data.network.dto.ClaimItemRequest
 import retrofit2.http.GET
 import com.example.lost_foundmanagementsystem.data.network.dto.ClaimDto
 import com.example.lost_foundmanagementsystem.data.network.dto.UpdateClaimRequest
+import com.example.lost_foundmanagementsystem.data.network.dto.UpdateFoundItemStatusRequest
 interface ApiService {
 
     @POST("login.php")
@@ -56,6 +57,11 @@ interface ApiService {
     @POST("updateItem.php")
     suspend fun updateClaim(
         @Body request: UpdateClaimRequest
+    ): Response<BasicResponse>
+
+    @POST("updateFoundItemStatus.php")
+    suspend fun updateFoundItemStatus(
+        @Body request: UpdateFoundItemStatusRequest
     ): Response<BasicResponse>
 
 }

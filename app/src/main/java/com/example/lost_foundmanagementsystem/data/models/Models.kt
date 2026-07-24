@@ -51,7 +51,8 @@ data class FoundItem(
 enum class ClaimStatus {
     Pending,
     Approved,
-    Rejected
+    Rejected,
+    Claimed
 }
 
 data class Claim(
